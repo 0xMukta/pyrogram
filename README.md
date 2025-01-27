@@ -9,7 +9,7 @@
         Homepage
     </a>
     •
-    <a href="https://pyrodocs.kurimuzon.ru">
+    <a href="https://docs.kurigram.live">
         Documentation
     </a>
     •
