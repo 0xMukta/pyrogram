@@ -16,6 +16,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
 
+from .add_to_gifs import AddToGifs
 from .copy_media_group import CopyMediaGroup
 from .copy_message import CopyMessage
 from .delete_chat_history import DeleteChatHistory
@@ -29,6 +30,7 @@ from .edit_message_caption import EditMessageCaption
 from .edit_message_media import EditMessageMedia
 from .edit_message_reply_markup import EditMessageReplyMarkup
 from .edit_message_text import EditMessageText
+from .forward_media_group import ForwardMediaGroup
 from .forward_messages import ForwardMessages
 from .get_available_effects import GetAvailableEffects
 from .get_chat_history import GetChatHistory
@@ -80,11 +82,13 @@ from .vote_poll import VotePoll
 
 
 class Messages(
+    AddToGifs,
     DeleteMessages,
     EditMessageCaption,
     EditMessageReplyMarkup,
     EditMessageMedia,
     EditMessageText,
+    ForwardMediaGroup,
     ForwardMessages,
     GetAvailableEffects,
     GetMediaGroup,

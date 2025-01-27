@@ -22,14 +22,12 @@ import logging
 from collections import OrderedDict
 
 import pyrogram
-from pyrogram import errors
 from pyrogram import utils
-from pyrogram import raw
 from pyrogram.handlers import (
     CallbackQueryHandler, MessageHandler, EditedMessageHandler, DeletedMessagesHandler,
     UserStatusHandler, RawUpdateHandler, InlineQueryHandler, PollHandler, PreCheckoutQueryHandler,
     ChosenInlineResultHandler, ChatMemberUpdatedHandler, ChatJoinRequestHandler, StoryHandler,
-    ShippingQueryHandler, MessageReactionHandler, MessageReactionCountHandler, ChatBoostHandler
+    ShippingQueryHandler, MessageReactionHandler, MessageReactionCountHandler, ChatBoostHandler, PurchasedPaidMediaHandler
 )
 from pyrogram.raw.types import (
     UpdateNewMessage, UpdateNewChannelMessage, UpdateNewScheduledMessage,
@@ -41,7 +39,7 @@ from pyrogram.raw.types import (
     UpdateBotInlineSend, UpdateChatParticipant, UpdateChannelParticipant,
     UpdateBotChatInviteRequester, UpdateStory, UpdateBotShippingQuery, UpdateBotMessageReaction,
     UpdateBotMessageReactions, UpdateBotChatBoost, UpdateBusinessBotCallbackQuery,
-    UpdateBotPurchasedPaidMedia
+    UpdateBotPurchasedPaidMedia, UpdateMessagePollVote
 )
 
 log = logging.getLogger(__name__)
@@ -55,7 +53,7 @@ class Dispatcher:
     CHAT_MEMBER_UPDATES = (UpdateChatParticipant, UpdateChannelParticipant)
     USER_STATUS_UPDATES = (UpdateUserStatus,)
     BOT_INLINE_QUERY_UPDATES = (UpdateBotInlineQuery,)
-    POLL_UPDATES = (UpdateMessagePoll,)
+    POLL_UPDATES = (UpdateMessagePoll, UpdateMessagePollVote)
     CHOSEN_INLINE_RESULT_UPDATES = (UpdateBotInlineSend,)
     CHAT_JOIN_REQUEST_UPDATES = (UpdateBotChatInviteRequester,)
     NEW_STORY_UPDATES = (UpdateStory,)
@@ -128,7 +126,7 @@ class Dispatcher:
 
         async def poll_parser(update, users, chats):
             return (
-                pyrogram.types.Poll._parse_update(self.client, update),
+                pyrogram.types.Poll._parse_update(self.client, update, users),
                 PollHandler
             )
 
@@ -189,7 +187,7 @@ class Dispatcher:
         async def purchased_paid_media_parser(update, users, chats):
             return (
                 pyrogram.types.PurchasedPaidMedia._parse(self.client, update, users),
-                ChatBoostHandler
+                PurchasedPaidMediaHandler
             )
 
         self.update_parsers = {
@@ -228,7 +226,7 @@ class Dispatcher:
             if not self.client.skip_updates:
                 await self.client.recover_gaps()
 
-    async def stop(self):
+    async def stop(self, clear: bool = True):
         if not self.client.no_updates:
             for i in range(self.client.workers):
                 self.updates_queue.put_nowait(None)
@@ -236,8 +234,9 @@ class Dispatcher:
             for i in self.handler_worker_tasks:
                 await i
 
-            self.handler_worker_tasks.clear()
-            self.groups.clear()
+            if clear:
+                self.handler_worker_tasks.clear()
+                self.groups.clear()
 
             log.info("Stopped %s HandlerTasks", self.client.workers)
 
@@ -305,7 +304,12 @@ class Dispatcher:
                                     continue
 
                             elif isinstance(handler, RawUpdateHandler):
-                                args = (update, users, chats)
+                                try:
+                                    if await handler.check(self.client, update):
+                                        args = (update, users, chats)
+                                except Exception as e:
+                                    log.exception(e)
+                                    continue
 
                             if args is None:
                                 continue

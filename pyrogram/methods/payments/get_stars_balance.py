@@ -16,48 +16,47 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
 
-from typing import List, Union
+from typing import Optional, Union
 
 import pyrogram
-from pyrogram import raw, types
+from pyrogram import raw
 
 
-class ReadStories:
-    async def read_stories(
+class GetStarsBalance:
+    async def get_stars_balance(
         self: "pyrogram.Client",
-        chat_id: Union[int, str],
-        max_id: int = 0,
-    ) -> List[int]:
-        """Read stories.
+        chat_id: Optional[Union[int, str]] = None,
+    ) -> int:
+        """Get the current Telegram Stars balance of the current account.
 
         .. include:: /_includes/usable-by/users.rst
 
         Parameters:
-            chat_id (``int`` | ``str``):
+            chat_id (``int`` | ``str``, *optional*):
                 Unique identifier (int) or username (str) of the target chat.
-                For a contact that exists in your Telegram address book you can use his phone number (str).
-
-            max_id (``int``, *optional*):
-                The id of the last story you want to mark as read; all the stories before this one will be marked as
-                read as well. Defaults to 0 (mark every unread message as read).
+                For your personal cloud (Saved Messages) you can simply use "me" or "self".
 
         Returns:
-            List of ``int``: On success, a list of read stories is returned.
+            ``int``: On success, the current stars balance is returned.
 
         Example:
             .. code-block:: python
 
-                # Read all stories
-                await app.read_stories(chat_id)
+                # Get stars balance
+                app.get_stars_balance()
 
-                # Mark stories as read only up to the given story id
-                await app.read_stories(chat_id, 123)
+                # Get stars balance of a bot
+                app.get_stars_balance(chat_id="pyrogrambot")
         """
+        if chat_id is None:
+            peer = raw.types.InputPeerSelf()
+        else:
+            peer = await self.resolve_peer(chat_id)
+
         r = await self.invoke(
-            raw.functions.stories.ReadStories(
-                peer=await self.resolve_peer(chat_id),
-                max_id=max_id or (1 << 31) - 1
+            raw.functions.payments.GetStarsStatus(
+                peer=peer
             )
         )
 
-        return types.List(r)
+        return r.balance.amount
