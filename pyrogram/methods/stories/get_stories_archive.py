@@ -23,8 +23,8 @@ from pyrogram import raw
 from pyrogram import types
 
 
-class GetArchivedStories:
-    async def get_archived_stories(
+class GetStoriesArchive:
+    async def get_stories_archive(
         self: "pyrogram.Client",
         chat_id: Union[int, str],
         limit: int = 0,
@@ -47,13 +47,13 @@ class GetArchivedStories:
             offset_id (``int``, *optional*):
                 Identifier of the first story to be returned.
 
-        Returns:
-            ``Generator``: A generator yielding :obj:`~pyrogram.types.Story` objects.
+        Yields:
+            :obj:`~pyrogram.types.Story` objects.
 
         Example:
             .. code-block:: python
 
-                # Get archived stories from specific chat
+                # Get stories archive
                 async for story in app.get_stories_archive(chat_id):
                     print(story)
         """

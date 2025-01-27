@@ -23,20 +23,19 @@ import pyrogram
 from pyrogram import raw, types, enums, utils
 
 
-class SendGift:
-    async def send_gift(
+class SendStarGift:
+    async def send_star_gift(
         self: "pyrogram.Client",
         chat_id: Union[int, str],
-        gift_id: int,
+        star_gift_id: int,
         text: Optional[str] = None,
         parse_mode: Optional["enums.ParseMode"] = None,
         entities: Optional[List["types.MessageEntity"]] = None,
         hide_my_name: Optional[bool] = None,
-        pay_for_upgrade: Optional[bool] = None
     ) -> bool:
         """Send star gift.
 
-        .. include:: /_includes/usable-by/users-bots.rst
+        .. include:: /_includes/usable-by/users.rst
 
         Parameters:
             chat_id (``int`` | ``str``):
@@ -44,9 +43,8 @@ class SendGift:
                 For your personal cloud (Saved Messages) you can simply use "me" or "self".
                 For a contact that exists in your Telegram address book you can use his phone number (str).
 
-            gift_id (``int``):
+            star_gift_id (``int``):
                 Unique identifier of star gift.
-                To get all available star gifts use :meth:`~pyrogram.Client.get_available_gifts`.
 
             text (``str``, *optional*):
                 Text of the message to be sent.
@@ -60,13 +58,6 @@ class SendGift:
 
             hide_my_name (``bool``, *optional*):
                 If True, your name will be hidden from visitors to the gift recipient's profile.
-                For userbots only.
-                Defaults to None.
-
-            pay_for_upgrade (``bool``, *optional*):
-                If True, gift upgrade will be paid from the bot’s balance, thereby making the upgrade free for the receiver.
-                For bots only.
-                Defaults to None.
 
         Returns:
             ``bool``: On success, True is returned.
@@ -75,7 +66,7 @@ class SendGift:
             .. code-block:: python
 
                 # Send gift
-                app.send_gift(chat_id=chat_id, gift_id=123)
+                app.send_star_gift(chat_id=chat_id, star_gift_id=123)
         """
         peer = await self.resolve_peer(chat_id)
 
@@ -86,10 +77,9 @@ class SendGift:
 
         invoice = raw.types.InputInvoiceStarGift(
             user_id=peer,
-            gift_id=gift_id,
+            gift_id=star_gift_id,
             hide_name=hide_my_name,
-            include_upgrade=pay_for_upgrade,
-            message=raw.types.TextWithEntities(text=text, entities=entities or []) if text else None
+            message=raw.types.TextWithEntities(text=text, entities=entities) if text else None
         )
 
         form = await self.invoke(

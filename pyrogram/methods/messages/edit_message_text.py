@@ -34,7 +34,7 @@ class EditMessageText:
         parse_mode: Optional["enums.ParseMode"] = None,
         entities: List["types.MessageEntity"] = None,
         disable_web_page_preview: bool = None,
-        show_caption_above_media: bool = None,
+        show_above_text: bool = None,
         schedule_date: datetime = None,
         reply_markup: "types.InlineKeyboardMarkup" = None
     ) -> "types.Message":
@@ -64,8 +64,9 @@ class EditMessageText:
             disable_web_page_preview (``bool``, *optional*):
                 Disables link previews for links in this message.
 
-            show_caption_above_media (``bool``, *optional*):
-                Pass True, if the caption must be shown above the message media.
+            show_above_text (``bool``, *optional*):
+                If True, link preview will be shown above the message text.
+                Otherwise, the link preview will be shown below the message text.
 
             schedule_date (:py:obj:`~datetime.datetime`, *optional*):
                 Date when the message will be automatically sent.
@@ -93,7 +94,7 @@ class EditMessageText:
                 peer=await self.resolve_peer(chat_id),
                 id=message_id,
                 no_webpage=disable_web_page_preview or None,
-                invert_media=show_caption_above_media or None,
+                invert_media=show_above_text or None,
                 schedule_date=utils.datetime_to_timestamp(schedule_date),
                 reply_markup=await reply_markup.write(self) if reply_markup else None,
                 **await utils.parse_text_entities(self, text, parse_mode, entities)

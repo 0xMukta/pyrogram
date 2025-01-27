@@ -54,7 +54,6 @@ from pyrogram.session import Auth, Session
 from pyrogram.storage import Storage, FileStorage, MemoryStorage
 from pyrogram.types import User, TermsOfService
 from pyrogram.utils import ainput
-from pyrogram.qrlogin import QRLogin
 from .connection import Connection
 from .connection.transport import TCP, TCPAbridged
 from .dispatcher import Dispatcher
@@ -230,7 +229,7 @@ class Client(Methods):
     UPDATES_WATCHDOG_INTERVAL = 15 * 60
 
     MAX_CONCURRENT_TRANSMISSIONS = 1
-    MAX_MESSAGE_CACHE_SIZE = 1000
+    MAX_MESSAGE_CACHE_SIZE = 10000
 
     mimetypes = MimeTypes()
     mimetypes.readfp(StringIO(mime_types))
@@ -508,38 +507,6 @@ class Client(Methods):
 
         return signed_up
 
-    async def authorize_qr(self, except_ids: List[int] = []) -> User:
-        from qrcode import QRCode
-        qr_login = QRLogin(self, except_ids)
-
-        while True:
-            try:
-                log.info("Waiting for QR code being scanned.")
-
-                signed_in = await qr_login.wait()
-
-                if signed_in:
-                    log.info(f"Logged in successfully as {signed_in.full_name}")
-                    return signed_in
-            except asyncio.TimeoutError:
-                log.info("Recreating QR code.")
-                await qr_login.recreate()
-                print("\x1b[2J")
-                print(f"Welcome to Pyrogram (version {__version__})")
-                print(f"Pyrogram is free software and comes with ABSOLUTELY NO WARRANTY. Licensed\n"
-                      f"under the terms of the {__license__}.\n")
-                print("Scan the QR code below to login")
-                print("Settings -> Privacy and Security -> Active Sessions -> Scan QR Code.\n")
-
-                qrcode = QRCode(version=1)
-                qrcode.add_data(qr_login.url)
-                qrcode.print_ascii(invert=True)
-            except SessionPasswordNeeded:
-                print(f"Password hint: {await self.get_password_hint()}")
-                return await self.check_password(
-                    await ainput("Enter 2FA password: ", hide=self.hide_password)
-                )
-
     def set_parse_mode(self, parse_mode: Optional["enums.ParseMode"]):
         """Set the parse mode to be used globally by the client.
 
@@ -581,26 +548,25 @@ class Client(Methods):
     async def fetch_peers(self, peers: List[Union[raw.types.User, raw.types.Chat, raw.types.Channel]]) -> bool:
         is_min = False
         parsed_peers = []
-        parsed_usernames = []
 
         for peer in peers:
             if getattr(peer, "min", False):
                 is_min = True
                 continue
 
-            usernames = []
+            usernames = None
             phone_number = None
 
             if isinstance(peer, raw.types.User):
                 peer_id = peer.id
                 access_hash = peer.access_hash
+                usernames = (
+                    [peer.username.lower()] if peer.username
+                    else [username.username.lower() for username in peer.usernames] if peer.usernames
+                    else None
+                )
                 phone_number = peer.phone
                 peer_type = "bot" if peer.bot else "user"
-
-                if peer.username:
-                    usernames.append(peer.username.lower())
-                elif peer.usernames:
-                    usernames.extend(username.username.lower() for username in peer.usernames)
             elif isinstance(peer, (raw.types.Chat, raw.types.ChatForbidden)):
                 peer_id = -peer.id
                 access_hash = 0
@@ -608,12 +574,12 @@ class Client(Methods):
             elif isinstance(peer, raw.types.Channel):
                 peer_id = utils.get_channel_id(peer.id)
                 access_hash = peer.access_hash
+                usernames = (
+                    [peer.username.lower()] if peer.username
+                    else [username.username.lower() for username in peer.usernames] if peer.usernames
+                    else None
+                )
                 peer_type = "channel" if peer.broadcast else "supergroup"
-
-                if peer.username:
-                    usernames.append(peer.username.lower())
-                elif peer.usernames:
-                    usernames.extend(username.username.lower() for username in peer.usernames)
             elif isinstance(peer, raw.types.ChannelForbidden):
                 peer_id = utils.get_channel_id(peer.id)
                 access_hash = peer.access_hash
@@ -621,11 +587,9 @@ class Client(Methods):
             else:
                 continue
 
-            parsed_peers.append((peer_id, access_hash, peer_type, phone_number))
-            parsed_usernames.append((peer_id, usernames))
+            parsed_peers.append((peer_id, access_hash, peer_type, usernames, phone_number))
 
         await self.storage.update_peers(parsed_peers)
-        await self.storage.update_usernames(parsed_usernames)
 
         return is_min
 
@@ -1248,10 +1212,7 @@ class Client(Methods):
             except Exception as e:
                 log.exception(e)
 
-    def guess_mime_type(self, filename: Union[str, BytesIO]) -> Optional[str]:
-        if isinstance(filename, BytesIO):
-            return self.mimetypes.guess_type(filename.name)[0]
-            
+    def guess_mime_type(self, filename: str) -> Optional[str]:
         return self.mimetypes.guess_type(filename)[0]
 
     def guess_extension(self, mime_type: str) -> Optional[str]:

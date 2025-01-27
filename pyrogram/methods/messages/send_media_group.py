@@ -55,9 +55,8 @@ class SendMediaGroup:
         quote_offset: int = None,
         schedule_date: datetime = None,
         protect_content: bool = None,
-        show_caption_above_media: bool = None,
-        business_connection_id: str = None,
-        allow_paid_broadcast: bool = None
+        show_above_text: bool = None,
+        business_connection_id: str = None
     ) -> List["types.Message"]:
         """Send a group of photos or videos as an album.
 
@@ -91,7 +90,7 @@ class SendMediaGroup:
                 If the message is a reply, ID of the original chat.
 
             reply_to_story_id (``int``, *optional*):
-                If the message is a reply, ID of the target story.
+                Unique identifier for the target story.
 
             quote_text (``str``, *optional*):
                 Text of the quote to be sent.
@@ -112,17 +111,12 @@ class SendMediaGroup:
             protect_content (``bool``, *optional*):
                 Protects the contents of the sent message from forwarding and saving.
 
-            show_caption_above_media (``bool``, *optional*):
-                Pass True, if the caption must be shown above the message media.
+            show_above_text (``bool``, *optional*):
+                If True, link preview will be shown above the message text.
+                Otherwise, the link preview will be shown below the message text.
 
             business_connection_id (``str``, *optional*):
                 Unique identifier of the business connection on behalf of which the message will be sent.
-
-            allow_paid_broadcast (``bool``, *optional*):
-                If True, you will be allowed to send up to 1000 messages per second.
-                Ignoring broadcasting limits for a fee of 0.1 Telegram Stars per message.
-                The relevant Stars will be withdrawn from the bot's balance.
-                For bots only.
 
         Returns:
             List of :obj:`~pyrogram.types.Message`: On success, a list of the sent messages is returned.
@@ -474,8 +468,7 @@ class SendMediaGroup:
                 ),
                 schedule_date=utils.datetime_to_timestamp(schedule_date),
                 noforwards=protect_content,
-                invert_media=show_caption_above_media,
-                allow_paid_floodskip=allow_paid_broadcast,
+                invert_media=show_above_text,
                 effect=effect_id,
             ),
             sleep_threshold=60,

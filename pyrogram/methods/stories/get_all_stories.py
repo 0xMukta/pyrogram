@@ -30,23 +30,9 @@ class GetAllStories:
         hidden: Optional[bool] = None,
         state: Optional[str] = None,
     ) -> AsyncGenerator["types.Story", None]:
-        """Get all active or hidden stories that displayed on the action bar on the homescreen.
+        """Get all active stories.
 
         .. include:: /_includes/usable-by/users.rst
-
-        Parameters
-            next (``bool``, *optional*):
-                If next and state are both set, uses the passed state to paginate to the next results.
-                If neither state nor next are set, fetches the initial page.
-                If state is set and next is not set, check for changes in the active/hidden peerset.
-
-            hidden (``bool``, *optional*):
-                If set, fetches the hidden active story list, otherwise fetches the active story list.
-
-            state (``str``, *optional*):
-                If next and state are both set, uses the passed state to paginate to the next results.
-                If neither state nor next are set, fetches the initial page.
-                If state is set and next is not set, check for changes in the active/hidden peerset.
 
         Returns:
             ``Generator``: On success, a generator yielding :obj:`~pyrogram.types.Story` objects is returned.
@@ -57,6 +43,9 @@ class GetAllStories:
                 # Get all active story
                 async for story in app.get_all_stories():
                     print(story)
+
+        Raises:
+            ValueError: In case of invalid arguments.
         """
 
         r = await self.invoke(

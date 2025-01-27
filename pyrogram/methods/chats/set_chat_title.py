@@ -32,8 +32,7 @@ class SetChatTitle:
         Titles can't be changed for private chats.
         You must be an administrator in the chat for this to work and must have the appropriate admin rights.
 
-        .. note::
-
+        Note:
             In regular groups (non-supergroups), this method will only work if the "All Members Are Admins"
             setting is off.
 

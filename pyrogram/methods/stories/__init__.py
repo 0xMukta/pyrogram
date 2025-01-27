@@ -16,47 +16,41 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
 
-from .can_post_stories import CanPostStories
+from .can_send_story import CanSendStory
 from .copy_story import CopyStory
 from .delete_stories import DeleteStories
 from .edit_story_caption import EditStoryCaption
 from .edit_story_media import EditStoryMedia
 from .edit_story_privacy import EditStoryPrivacy
-from .enable_stealth_mode import EnableStealthMode
 from .forward_story import ForwardStory
 from .get_all_stories import GetAllStories
-from .get_archived_stories import GetArchivedStories
 from .get_chat_stories import GetChatStories
 from .get_pinned_stories import GetPinnedStories
 from .get_stories import GetStories
-from .hide_chat_stories import HideChatStories
-from .pin_chat_stories import PinChatStories
-from .read_chat_stories import ReadChatStories
-from .send_story import SendStory
-from .show_chat_stories import ShowChatStories
-from .unpin_chat_stories import UnpinChatStories
+from .get_stories_archive import GetStoriesArchive
+from .hide_stories import HideStories
 from .view_stories import ViewStories
+from .pin_stories import PinStories
+from .read_stories import ReadStories
+from .send_story import SendStory
 
 class Stories(
-    CanPostStories,
+    CanSendStory,
     CopyStory,
     DeleteStories,
     EditStoryCaption,
     EditStoryMedia,
     EditStoryPrivacy,
-    EnableStealthMode,
     ForwardStory,
     GetAllStories,
-    GetArchivedStories,
     GetChatStories,
     GetPinnedStories,
     GetStories,
-    HideChatStories,
-    PinChatStories,
-    ReadChatStories,
-    SendStory,
-    ShowChatStories,
-    UnpinChatStories,
+    GetStoriesArchive,
+    HideStories,
     ViewStories,
+    PinStories,
+    ReadStories,
+    SendStory,
 ):
     pass

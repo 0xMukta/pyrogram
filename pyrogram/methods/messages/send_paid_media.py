@@ -52,7 +52,7 @@ class SendPaidMedia:
         quote_offset: int = None,
         schedule_date: datetime = None,
         protect_content: bool = None,
-        show_caption_above_media: bool = None,
+        show_above_text: bool = None,
         business_connection_id: str = None
     ) -> List["types.Message"]:
         """Send a group or one paid photo/video.
@@ -107,8 +107,9 @@ class SendPaidMedia:
             protect_content (``bool``, *optional*):
                 Protects the contents of the sent message from forwarding and saving.
 
-            show_caption_above_media (``bool``, *optional*):
-                Pass True, if the caption must be shown above the message media.
+            show_above_text (``bool``, *optional*):
+                If True, link preview will be shown above the message text.
+                Otherwise, the link preview will be shown below the message text.
 
             business_connection_id (``str``, *optional*):
                 Unique identifier of the business connection on behalf of which the message will be sent.
@@ -268,7 +269,7 @@ class SendPaidMedia:
                 random_id=self.rnd_id(),
                 schedule_date=utils.datetime_to_timestamp(schedule_date),
                 noforwards=protect_content,
-                invert_media=show_caption_above_media,
+                invert_media=show_above_text,
                 **await utils.parse_text_entities(self, caption, parse_mode, caption_entities)
             ),
             sleep_threshold=60,

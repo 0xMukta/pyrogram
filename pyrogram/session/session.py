@@ -142,12 +142,11 @@ class Session:
                 log.info("Session initialized: Layer %s", layer)
                 log.info("Device: %s - %s", self.client.device_model, self.client.app_version)
                 log.info("System: %s (%s)", self.client.system_version, self.client.lang_code)
-            except (AuthKeyDuplicated, Unauthorized) as e:
+            except AuthKeyDuplicated as e:
                 await self.stop()
                 raise e
-            except (OSError, RPCError) as e:
+            except (OSError, RPCError):
                 await self.stop()
-                raise e
             except Exception as e:
                 await self.stop()
                 raise e

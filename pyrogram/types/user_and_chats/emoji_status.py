@@ -20,8 +20,8 @@ from datetime import datetime
 from typing import Optional
 
 import pyrogram
-from pyrogram import raw, utils
-
+from pyrogram import raw
+from pyrogram import utils
 from ..object import Object
 
 
@@ -34,30 +34,6 @@ class EmojiStatus(Object):
 
         until_date (:py:obj:`~datetime.datetime`, *optional*):
             Valid until date.
-
-        title (``str``, *optional*):
-            Title of the collectible.
-
-        collectible_id (``int``, *optional*):
-            Collectible id.
-
-        name (``str``, *optional*):
-            Name of the collectible.
-
-        pattern_custom_emoji_id (``int``, *optional*):
-            Pattern emoji id.
-
-        center_color (``int``, *optional*):
-            Center color of the collectible emoji in decimal format.
-
-        edge_color (``int``, *optional*):
-            Edge color of the collectible emoji in decimal format.
-
-        pattern_color (``int``, *optional*):
-            Pattern color of the collectible emoji in decimal format.
-
-        text_color (``int``, *optional*):
-            Text color of the collectible emoji in decimal format.
     """
 
     def __init__(
@@ -65,63 +41,37 @@ class EmojiStatus(Object):
         *,
         client: "pyrogram.Client" = None,
         custom_emoji_id: int,
-        until_date: Optional[datetime] = None,
-        title: Optional[str] = None,
-        collectible_id: Optional[int] = None,
-        name: Optional[str] = None,
-        pattern_custom_emoji_id: Optional[int] = None,
-        center_color: Optional[int] = None,
-        edge_color: Optional[int] = None,
-        pattern_color: Optional[int] = None,
-        text_color: Optional[int] = None
+        until_date: Optional[datetime] = None
     ):
         super().__init__(client)
 
         self.custom_emoji_id = custom_emoji_id
         self.until_date = until_date
-        self.title = title
-        self.collectible_id = collectible_id
-        self.name = name
-        self.pattern_custom_emoji_id = pattern_custom_emoji_id
-        self.center_color = center_color
-        self.edge_color = edge_color
-        self.pattern_color = pattern_color
-        self.text_color = text_color
 
     @staticmethod
     def _parse(client, emoji_status: "raw.base.EmojiStatus") -> Optional["EmojiStatus"]:
         if isinstance(emoji_status, raw.types.EmojiStatus):
             return EmojiStatus(
                 client=client,
-                custom_emoji_id=emoji_status.document_id,
-                until_date=utils.timestamp_to_datetime(getattr(emoji_status, "until", None))
+                custom_emoji_id=emoji_status.document_id
             )
 
-        if isinstance(emoji_status, raw.types.EmojiStatusCollectible):
+        if isinstance(emoji_status, raw.types.EmojiStatusUntil):
             return EmojiStatus(
                 client=client,
                 custom_emoji_id=emoji_status.document_id,
-                until_date=utils.timestamp_to_datetime(getattr(emoji_status, "until", None)),
-                title=emoji_status.title,
-                collectible_id=emoji_status.collectible_id,
-                name=emoji_status.slug,
-                pattern_custom_emoji_id=emoji_status.pattern_document_id,
-                center_color=emoji_status.center_color,
-                edge_color=emoji_status.edge_color,
-                pattern_color=emoji_status.pattern_color,
-                text_color=emoji_status.text_color
+                until_date=utils.timestamp_to_datetime(emoji_status.until)
             )
 
         return None
 
     def write(self):
-        if self.collectible_id:
-            return raw.types.InputEmojiStatusCollectible(
-                collectible_id=self.collectible_id,
+        if self.until_date:
+            return raw.types.EmojiStatusUntil(
+                document_id=self.custom_emoji_id,
                 until=utils.datetime_to_timestamp(self.until_date)
             )
 
         return raw.types.EmojiStatus(
-            document_id=self.custom_emoji_id,
-            until=utils.datetime_to_timestamp(self.until_date)
+            document_id=self.custom_emoji_id
         )

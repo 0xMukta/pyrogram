@@ -15,15 +15,30 @@
 #
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
+from typing import List
 
-from ..object import Object
+import pyrogram
+from pyrogram import raw, types
 
 
-class ContactRegistered(Object):
-    """A service message that a contact has registered with Telegram.
+class GetStarGifts:
+    async def get_star_gifts(
+        self: "pyrogram.Client",
+    ) -> List["types.StarGift"]:
+        """Get all available star gifts to send.
 
-    Currently holds no information.
-    """
+        .. include:: /_includes/usable-by/users.rst
 
-    def __init__(self):
-        super().__init__()
+        Returns:
+            List of :obj:`~pyrogram.types.StarGift`: On success, a list of star gifts is returned.
+
+        Example:
+            .. code-block:: python
+
+                app.get_star_gifts()
+        """
+        r = await self.invoke(
+            raw.functions.payments.GetStarGifts(hash=0)
+        )
+
+        return types.List([await types.StarGift._parse(self, gift) for gift in r.gifts])

@@ -17,7 +17,6 @@
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
 
 from .birthday import Birthday
-from .bot_verification import BotVerification
 from .business_connection import BusinessConnection
 from .business_info import BusinessInfo
 from .business_intro import BusinessIntro
@@ -44,11 +43,8 @@ from .folder import Folder
 from .found_contacts import FoundContacts
 from .group_call_member import GroupCallMember
 from .invite_link_importer import InviteLinkImporter
-from .phone_call_ended import PhoneCallEnded
-from .phone_call_started import PhoneCallStarted
 from .privacy_rule import PrivacyRule
 from .restriction import Restriction
-from .stories_stealth_mode import StoriesStealthMode
 from .user import User
 from .username import Username
 from .video_chat_ended import VideoChatEnded
@@ -58,7 +54,6 @@ from .video_chat_started import VideoChatStarted
 
 __all__ = [
     "Birthday",
-    "BotVerification",
     "BusinessConnection",
     "BusinessInfo",
     "BusinessIntro",
@@ -73,13 +68,10 @@ __all__ = [
     "User",
     "Username",
     "Restriction",
-    "StoriesStealthMode",
     "ChatEvent",
     "ChatEventFilter",
     "ChatInviteLink",
     "InviteLinkImporter",
-    "PhoneCallEnded",
-    "PhoneCallStarted",
     "PrivacyRule",
     "ChatAdminWithInviteLinks",
     "ChatColor",
