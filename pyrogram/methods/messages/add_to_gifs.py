@@ -16,42 +16,45 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
 
-from typing import Union
-
 import pyrogram
 from pyrogram import raw
+from pyrogram.file_id import FileId
 
-
-class HideStories:
-    async def hide_stories(
+class AddToGifs():
+    async def add_to_gifs(
         self: "pyrogram.Client",
-        chat_id: Union[int, str],
-        hidden: bool = None
+        file_id: str,
+        unsave: bool = False
     ) -> bool:
-        """Toggle peer stories hidden
+        """Add a GIF to the list of saved GIFs.
 
         .. include:: /_includes/usable-by/users.rst
 
         Parameters:
-            chat_id (``int`` | ``str``):
-                Unique identifier (int) or username (str) of the target chat.
-                For your personal cloud (Saved Messages) you can simply use "me" or "self".
-                For a contact that exists in your Telegram address book you can use his phone number (str).
+            file_id (``str``):
+                Unique identifier for the GIF.
+
+            unsave (``bool``, optional):
+                Whether to remove the GIF from the list of saved GIFs. Defaults to ``False``.
 
         Returns:
-            ``str``: On success, a bool is returned.
+            ``bool``: True on success.
 
         Example:
             .. code-block:: python
 
-                # Export a story link
-                link = app.hide_stories("me")
+                await app.add_to_gifs(message.animation.file_id)
+
         """
-        r = await self.invoke(
-            raw.functions.stories.TogglePeerStoriesHidden(
-                peer=await self.resolve_peer(chat_id),
-                hidden=hidden
+        decoded_file_id = FileId.decode(file_id)
+
+        return await self.invoke(
+            raw.functions.messages.SaveGif(
+                id=raw.types.InputDocument(
+                    id=decoded_file_id.media_id,
+                    file_reference=decoded_file_id.file_reference,
+                    access_hash=decoded_file_id.access_hash,
+                ),
+                unsave=unsave
             )
         )
-
-        return r

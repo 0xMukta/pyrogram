@@ -148,6 +148,7 @@ def pyrogram_api():
         messages="""
         Messages
             send_message
+            forward_media_group
             forward_messages
             copy_message
             copy_media_group
@@ -207,6 +208,7 @@ def pyrogram_api():
             delete_chat_history
             send_paid_media
             send_paid_reaction
+            add_to_gifs
         """,
         chats="""
         Chats
@@ -324,15 +326,19 @@ def pyrogram_api():
         Payments
             apply_gift_code
             check_gift_code
-            convert_star_gift
+            convert_gift
             get_payment_form
-            get_star_gifts
-            get_user_star_gifts_count
-            get_user_star_gifts
-            hide_star_gift
+            get_available_gifts
+            get_upgraded_gift
+            get_chat_gifts_count
+            get_chat_gifts
+            hide_gift
             send_payment_form
-            send_star_gift
-            show_star_gift
+            send_gift
+            show_gift
+            transfer_gift
+            upgrade_gift
+            get_stars_balance
         """,
         phone="""
         Phone
@@ -367,6 +373,13 @@ def pyrogram_api():
             answer_shipping_query
             create_invoice_link
             refund_star_payment
+            set_bot_info_description
+            get_bot_info_description
+            set_bot_info_short_description
+            get_bot_info_short_description
+            set_bot_name
+            get_bot_name
+            get_owned_bots
         """,
         business="""
         Business
@@ -401,7 +414,7 @@ def pyrogram_api():
         """,
         stories="""
         Stories
-            can_send_story
+            can_post_stories
             copy_story
             delete_stories
             edit_story_caption
@@ -411,13 +424,16 @@ def pyrogram_api():
             get_all_stories
             get_chat_stories
             get_pinned_stories
-            get_stories_archive
+            get_archived_stories
             get_stories
-            hide_stories
+            hide_chat_stories
+            show_chat_stories
             view_stories
-            pin_stories
-            read_stories
+            pin_chat_stories
+            unpin_chat_stories
+            read_chat_stories
             send_story
+            enable_stealth_mode
         """,
         premium="""
         Premium
@@ -476,7 +492,6 @@ def pyrogram_api():
             BusinessConnection
             BusinessInfo
             BusinessIntro
-            BusinessMessage
             BusinessRecipients
             BusinessWeeklyOpen
             BusinessWorkingHours
@@ -502,22 +517,32 @@ def pyrogram_api():
             ChatColor
             FoundContacts
             PrivacyRule
+            StoriesStealthMode
+            BotVerification
         """,
         messages_media="""
         Messages & Media
+            BusinessMessage
             Message
             MessageEntity
             Photo
             Thumbnail
+            StrippedThumbnail
             Audio
             AvailableEffect
             Document
+            ForumTopic
+            ForumTopicClosed
+            ForumTopicCreated
+            ForumTopicEdited
+            ForumTopicReopened
             Animation
             Video
             Voice
             VideoNote
             Contact
             Location
+            MediaArea
             Venue
             Sticker
             Game
@@ -526,11 +551,14 @@ def pyrogram_api():
             PollOption
             Dice
             Reaction
-            StarGift
+            RefundedPayment
+            Gift
             VideoChatScheduled
             VideoChatStarted
             VideoChatEnded
             VideoChatMembersInvited
+            PhoneCallStarted
+            PhoneCallEnded
             WebAppData
             MessageReactions
             ChatReactions
@@ -538,7 +566,9 @@ def pyrogram_api():
             MyBoost
             BoostsStatus
             Giveaway
-            GiveawayResult
+            GiveawayCreated
+            GiveawayCompleted
+            GiveawayWinners
             Invoice
             GiftCode
             CheckedGiftCode
@@ -547,6 +577,10 @@ def pyrogram_api():
             PaidMediaPreview
             PaymentForm
             ChatBoost
+            ContactRegistered
+            ScreenshotTaken
+            WriteAccessAllowed
+            GiftAttribute
         """,
         bot_keyboards="""
         Bot keyboards
@@ -566,7 +600,6 @@ def pyrogram_api():
             MenuButtonWebApp
             MenuButtonDefault
             SentWebAppMessage
-            ForumTopic
             RequestChannelInfo
             RequestChatInfo
             RequestUserInfo
@@ -780,6 +813,7 @@ def pyrogram_api():
         """,
         story="""
         Story
+            Story.reply
             Story.reply_text
             Story.reply_animation
             Story.reply_audio
@@ -816,10 +850,17 @@ def pyrogram_api():
         ActiveSession
             ActiveSession.reset
         """,
-        star_gift="""
-        StarGift
-            StarGift.save
-            StarGift.hide
+        gift="""
+        Gift
+            Gift.show
+            Gift.hide
+            Gift.convert
+            Gift.upgrade
+            Gift.transfer
+        """,
+        animation="""
+        Animation
+            Animation.add_to_gifs
         """
     )
 
@@ -861,16 +902,19 @@ def pyrogram_api():
             BusinessSchedule
             ChatAction
             ChatEventAction
+            ChatJoinType
             ChatMemberStatus
             ChatMembersFilter
             ChatType
             ClientPlatform
             FolderColor
             MessageEntityType
+            MessageMediaType
             MessageServiceType
             MessagesFilter
             NextCodeType
             ParseMode
+            PhoneCallDiscardReason
             PollType
             PrivacyKey
             ProfileColor
@@ -878,6 +922,8 @@ def pyrogram_api():
             SentCodeType
             StoriesPrivacyRules
             UserStatus
+            GiftAttributeType
+            MediaAreaType
         """,
     )
 
