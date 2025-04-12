@@ -16,10 +16,8 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
 
-from typing import List
-
-import asyncio
 import inspect
+from typing import List
 
 import pyrogram
 from pyrogram.methods.utilities.idle import idle
@@ -27,7 +25,7 @@ from pyrogram.methods.utilities.idle import idle
 
 class Run:
     def run(
-        self: "pyrogram.Client",
+        self: "pyrogram.Client", *,
         use_qr: bool = False,
         except_ids: List[int] = [],
     ):
@@ -59,23 +57,8 @@ class Run:
                 app = Client("my_account")
                 ...  # Set handlers up
                 app.run()
-
-            .. code-block:: python
-
-                from pyrogram import Client
-
-                app = Client("my_account")
-
-
-                async def main():
-                    async with app:
-                        print(await app.get_me())
-
-
-                app.run(main())
         """
-        loop = asyncio.get_event_loop()
-        run = loop.run_until_complete
+        run = self.loop.run_until_complete
 
         if inspect.iscoroutinefunction(self.start):
             run(self.start(use_qr=use_qr, except_ids=except_ids))
