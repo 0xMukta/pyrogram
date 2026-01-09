@@ -17,7 +17,7 @@
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import pyrogram
 from pyrogram import enums, raw, types, utils
@@ -34,6 +34,10 @@ class GiftAttribute(Object):
 
         name (``str``, *optional*):
             Name of the attribute.
+
+        backdrop_id (``int``, *optional*):
+            Unique backdrop identifier.
+            Available only if the backdrop attribute is available.
 
         rarity (``int``, *optional*):
             Rarity of the attribute in permilles.
@@ -77,8 +81,6 @@ class GiftAttribute(Object):
 
         sticker (:obj:`~pyrogram.types.Sticker`, *optional*):
             Information about the sticker.
-
-
     """
 
     def __init__(
@@ -87,6 +89,7 @@ class GiftAttribute(Object):
         client: "pyrogram.Client" = None,
         type: "enums.GiftAttributeType",
         name: Optional[str] = None,
+        backdrop_id: Optional[int] = None,
         rarity: Optional[int] = None,
         date: Optional[datetime] = None,
         caption: Optional[str] = None,
@@ -102,6 +105,7 @@ class GiftAttribute(Object):
         super().__init__(client)
 
         self.name = name
+        self.backdrop_id = backdrop_id
         self.type = type
         self.rarity = rarity
         self.date = date
@@ -119,8 +123,8 @@ class GiftAttribute(Object):
     async def _parse(
         client,
         attr: "raw.base.StarGiftAttribute",
-        users: dict,
-        chats: dict
+        users: Dict[int, "raw.base.User"],
+        chats: Dict[int, "raw.base.Chat"]
     ) -> "GiftAttribute":
         caption = None
         caption_entities = None
@@ -146,6 +150,7 @@ class GiftAttribute(Object):
 
         return GiftAttribute(
             name=getattr(attr, "name", None),
+            backdrop_id=getattr(attr, "backdrop_id", None),
             type=enums.GiftAttributeType(type(attr)),
             rarity=getattr(attr, "rarity_permille", None),
             date=utils.timestamp_to_datetime(getattr(attr, "date", None)),

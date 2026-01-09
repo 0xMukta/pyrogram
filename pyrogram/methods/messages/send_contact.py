@@ -35,8 +35,10 @@ class SendContact:
         vcard: str = None,
         disable_notification: bool = None,
         message_thread_id: int = None,
+        direct_messages_topic_id: int = None,
         effect_id: int = None,
         reply_parameters: "types.ReplyParameters" = None,
+        suggested_post_parameters: "types.SuggestedPostParameters" = None,
         schedule_date: datetime = None,
         protect_content: bool = None,
         business_connection_id: str = None,
@@ -84,7 +86,11 @@ class SendContact:
 
             message_thread_id (``int``, *optional*):
                 Unique identifier for the target message thread (topic) of the forum.
-                For supergroups only.
+                For forums only.
+
+            direct_messages_topic_id (``int``, *optional*):
+                Unique identifier of the topic in a channel direct messages chat administered by the current user.
+                For directs only only.
 
             effect_id (``int``, *optional*):
                 Unique identifier of the message effect.
@@ -92,6 +98,9 @@ class SendContact:
 
             reply_parameters (:obj:`~pyrogram.types.ReplyParameters`, *optional*):
                 Describes reply parameters for the message that is being sent.
+
+            suggested_post_parameters (:obj:`~pyrogram.types.SuggestedPostParameters`, *optional*):
+                Information about the suggested post.
 
             schedule_date (:py:obj:`~datetime.datetime`, *optional*):
                 Date when the message will be automatically sent.
@@ -187,7 +196,8 @@ class SendContact:
                 reply_to=await utils.get_reply_to(
                     self,
                     reply_parameters,
-                    message_thread_id
+                    message_thread_id,
+                    direct_messages_topic_id
                 ),
                 random_id=self.rnd_id(),
                 schedule_date=utils.datetime_to_timestamp(schedule_date),
@@ -196,19 +206,11 @@ class SendContact:
                 reply_markup=await reply_markup.write(self) if reply_markup else None,
                 effect=effect_id,
                 allow_paid_stars=paid_message_star_count,
+                suggested_post=suggested_post_parameters.write() if suggested_post_parameters else None,
             ),
             business_connection_id=business_connection_id
         )
 
-        for i in r.updates:
-            if isinstance(i, (raw.types.UpdateNewMessage,
-                              raw.types.UpdateNewChannelMessage,
-                              raw.types.UpdateNewScheduledMessage,
-                              raw.types.UpdateBotNewBusinessMessage)):
-                return await types.Message._parse(
-                    self, i.message,
-                    {i.id: i for i in r.users},
-                    {i.id: i for i in r.chats},
-                    is_scheduled=isinstance(i, raw.types.UpdateNewScheduledMessage),
-                    business_connection_id=getattr(i, "connection_id", None)
-                )
+        messages = await utils.parse_messages(client=self, messages=r)
+
+        return messages[0] if messages else None

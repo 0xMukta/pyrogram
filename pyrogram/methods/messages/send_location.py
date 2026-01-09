@@ -31,10 +31,16 @@ class SendLocation:
         chat_id: Union[int, str],
         latitude: float,
         longitude: float,
+        horizontal_accuracy: float = None,
+        live_period: int = None,
+        heading: int = None,
+        proximity_alert_radius: int = None,
         disable_notification: bool = None,
         message_thread_id: int = None,
+        direct_messages_topic_id: int = None,
         effect_id: int = None,
         reply_parameters: "types.ReplyParameters" = None,
+        suggested_post_parameters: "types.SuggestedPostParameters" = None,
         schedule_date: datetime = None,
         protect_content: bool = None,
         business_connection_id: str = None,
@@ -70,13 +76,33 @@ class SendLocation:
             longitude (``float``):
                 Longitude of the location.
 
+            horizontal_accuracy (``float``, *optional*):
+                The radius of uncertainty for the location, measured in meters, 0-1500.
+
+            live_period (``int``, *optional*):
+                For live locations, a period for which the location can be updated, in seconds.
+                Must be between 60 and 86400 for a temporary live location, 0x7FFFFFFF for permanent live location.
+
+            heading (``int``, *optional*):
+                For live locations, a direction in which the user is moving, in degrees.
+                Must be between 1 and 360 if specified.
+
+            proximity_alert_radius (``int``, *optional*):
+                For live locations, a maximum distance for proximity alerts about approaching another chat member, in meters.
+                Must be between 1 and 100000 if specified.
+                Can't be enabled in channels and Saved Messages.
+
             disable_notification (``bool``, *optional*):
                 Sends the message silently.
                 Users will receive a notification with no sound.
 
             message_thread_id (``int``, *optional*):
                 Unique identifier for the target message thread (topic) of the forum.
-                For supergroups only.
+                For forums only.
+
+            direct_messages_topic_id (``int``, *optional*):
+                Unique identifier of the topic in a channel direct messages chat administered by the current user.
+                For directs only only.
 
             effect_id (``int``, *optional*):
                 Unique identifier of the message effect.
@@ -84,6 +110,9 @@ class SendLocation:
 
             reply_parameters (:obj:`~pyrogram.types.ReplyParameters`, *optional*):
                 Describes reply parameters for the message that is being sent.
+
+            suggested_post_parameters (:obj:`~pyrogram.types.SuggestedPostParameters`, *optional*):
+                Information about the suggested post.
 
             schedule_date (:py:obj:`~datetime.datetime`, *optional*):
                 Date when the message will be automatically sent.
@@ -113,7 +142,7 @@ class SendLocation:
         Example:
             .. code-block:: python
 
-                app.send_location("me", latitude, longitude)
+                await app.send_location("me", latitude, longitude)
         """
         if any(
             (
@@ -164,21 +193,37 @@ class SendLocation:
                 quote_position=quote_offset
             )
 
+        if live_period is not None:
+            media = raw.types.InputMediaGeoLive(
+                geo_point=raw.types.InputGeoPoint(
+                    lat=latitude,
+                    long=longitude,
+                    accuracy_radius=horizontal_accuracy
+                ),
+                heading=heading,
+                period=live_period,
+                proximity_notification_radius=proximity_alert_radius
+            )
+        else:
+            media = raw.types.InputMediaGeoPoint(
+                geo_point=raw.types.InputGeoPoint(
+                    lat=latitude,
+                    long=longitude,
+                    accuracy_radius=horizontal_accuracy
+                )
+            )
+
         r = await self.invoke(
             raw.functions.messages.SendMedia(
                 peer=await self.resolve_peer(chat_id),
-                media=raw.types.InputMediaGeoPoint(
-                    geo_point=raw.types.InputGeoPoint(
-                        lat=latitude,
-                        long=longitude
-                    )
-                ),
+                media=media,
                 message="",
                 silent=disable_notification or None,
                 reply_to=await utils.get_reply_to(
                     self,
                     reply_parameters,
-                    message_thread_id
+                    message_thread_id,
+                    direct_messages_topic_id
                 ),
                 random_id=self.rnd_id(),
                 schedule_date=utils.datetime_to_timestamp(schedule_date),
@@ -186,20 +231,12 @@ class SendLocation:
                 allow_paid_floodskip=allow_paid_broadcast,
                 allow_paid_stars=paid_message_star_count,
                 reply_markup=await reply_markup.write(self) if reply_markup else None,
-                effect=effect_id
+                effect=effect_id,
+                suggested_post=suggested_post_parameters.write() if suggested_post_parameters else None
             ),
             business_connection_id=business_connection_id
         )
 
-        for i in r.updates:
-            if isinstance(i, (raw.types.UpdateNewMessage,
-                              raw.types.UpdateNewChannelMessage,
-                              raw.types.UpdateNewScheduledMessage,
-                              raw.types.UpdateBotNewBusinessMessage)):
-                return await types.Message._parse(
-                    self, i.message,
-                    {i.id: i for i in r.users},
-                    {i.id: i for i in r.chats},
-                    is_scheduled=isinstance(i, raw.types.UpdateNewScheduledMessage),
-                    business_connection_id=getattr(i, "connection_id", None)
-                )
+        messages = await utils.parse_messages(client=self, messages=r)
+
+        return messages[0] if messages else None

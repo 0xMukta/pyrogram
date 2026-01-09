@@ -144,24 +144,19 @@ class SaveFile:
             md5_sum = md5() if not is_big and not is_missing_part else None
             dc_id = await self.storage.dc_id()
             is_bot = await self.storage.is_bot()
-            session_constructed = False
 
-            if not is_bot:      #Use less Sessions in case of Userbot is uploading to avoid Ban of account
-                session = self.media_sessions.get(dc_id)
-            else:
-                pool_size = 3 if is_big else 1     #This value can be changed to get more upload speed (Can cause problem for large number of users)
-            
+            # Separate logic for Userbot vs Bot upload
+            # Userbots: Use single cached session to prevent account ban
+            # Bots: Use multiple separate sessions for faster parallel uploads
             if not is_bot:
-                if not session:
-                    session_constructed = True
-                    session = self.media_sessions[dc_id] = Session(
-                        self, dc_id, await self.storage.auth_key(),
-                        await self.storage.test_mode(), is_media=True
-                    )
-
+                session = await self.get_session(dc_id, is_media=True)
                 workers = [self.loop.create_task(worker(session)) for _ in range(workers_count)]
                 queue = asyncio.Queue(1)
             else:
+                # Bot: Create separate session pool per upload for concurrent safety
+                # Each upload gets its own isolated sessions to avoid conflicts
+                # when multiple users upload simultaneously
+                pool_size = 3 if is_big else 1  # Configurable for upload speed (bigger values give more speed but may cause floodwait if bot is used by large number of users)
                 pool = [
                     Session(
                         self, dc_id, await self.storage.auth_key(),
@@ -171,11 +166,9 @@ class SaveFile:
                 workers = [self.loop.create_task(worker(session)) for session in pool for _ in range(workers_count)]
                 queue = asyncio.Queue(16)
 
-
             try:
-                if not is_bot and session_constructed:
-                    await session.start()
-                elif is_bot:
+                # Start bot sessions (userbot session already started by get_session)
+                if is_bot:
                     for session in pool:
                         await session.start()
 
@@ -250,6 +243,8 @@ class SaveFile:
 
                 await asyncio.gather(*workers)
 
+                # Stop bot sessions (they were created for this upload)
+                # Userbot session is cached in media_sessions, don't stop it
                 if is_bot:
                     for session in pool:
                         await session.stop()

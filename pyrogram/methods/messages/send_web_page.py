@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import List, Optional, Union
 
 import pyrogram
-from pyrogram import enums, raw, types, utils
+from pyrogram import enums, types
 
 log = logging.getLogger(__name__)
 
@@ -29,18 +29,21 @@ class SendWebPage:
     async def send_web_page(
         self: "pyrogram.Client",
         chat_id: Union[int, str],
-        text: str = None,
+        text: str = "",
         url: str = None,
         prefer_large_media: bool = None,
         prefer_small_media: bool = None,
         parse_mode: Optional["enums.ParseMode"] = None,
         entities: List["types.MessageEntity"] = None,
+        link_preview_options: "types.LinkPreviewOptions" = None,
         disable_notification: bool = None,
         message_thread_id: int = None,
+        direct_messages_topic_id: int = None,
         effect_id: int = None,
         show_caption_above_media: bool = None,
         reply_parameters: "types.ReplyParameters" = None,
         schedule_date: datetime = None,
+        repeat_period: int = None,
         protect_content: bool = None,
         business_connection_id: str = None,
         allow_paid_broadcast: bool = None,
@@ -83,16 +86,8 @@ class SendWebPage:
             entities (List of :obj:`~pyrogram.types.MessageEntity`):
                 List of special entities that appear in message text, which can be specified instead of *parse_mode*.
 
-            prefer_large_media (``bool``, *optional*):
-                If True, media in the link preview will be larger.
-                Ignored if the URL isn't explicitly specified or media size change isn't supported for the preview.
-
-            prefer_small_media (``bool``, *optional*):
-                If True, media in the link preview will be smaller.
-                Ignored if the URL isn't explicitly specified or media size change isn't supported for the preview.
-
-            show_caption_above_media (``bool``, *optional*):
-                Pass True, if the caption must be shown above the message media.
+            link_preview_options (:obj:`~pyrogram.types.LinkPreviewOptions`, *optional*):
+                Options used for link preview generation for the message.
 
             disable_notification (``bool``, *optional*):
                 Sends the message silently.
@@ -100,7 +95,11 @@ class SendWebPage:
 
             message_thread_id (``int``, *optional*):
                 Unique identifier for the target message thread (topic) of the forum.
-                for forum supergroups only.
+                For forums only.
+
+            direct_messages_topic_id (``int``, *optional*):
+                Unique identifier of the topic in a channel direct messages chat administered by the current user.
+                For directs only only.
 
             effect_id (``int``, *optional*):
                 Unique identifier of the message effect.
@@ -114,6 +113,9 @@ class SendWebPage:
 
             schedule_date (:py:obj:`~datetime.datetime`, *optional*):
                 Date when the message will be automatically sent.
+
+            repeat_period (``int``, *optional*):
+                Period after which the message will be sent again in seconds.
 
             protect_content (``bool``, *optional*):
                 Protects the contents of the sent message from forwarding and saving.
@@ -144,138 +146,50 @@ class SendWebPage:
                 await app.send_web_page("me", "https://docs.pyrogram.org")
 
                 # Make web preview image larger
-                await app.send_web_page("me", "https://docs.pyrogram.org", prefer_large_media=True)
+                await app.send_web_page("me", "https://docs.pyrogram.org", link_preview_options=types.LinkPreviewOptions(
+                    prefer_large_media=True
+                ))
 
         """
+        log.warning("`send_web_page` is deprecated and will be removed in future updates. Use `send_message` instead.")
+
         if any(
             (
-                reply_to_message_id is not None,
-                reply_to_chat_id is not None,
-                reply_to_story_id is not None,
-                quote_text is not None,
-                quote_entities is not None,
-                quote_offset is not None,
+                url is not None,
+                prefer_large_media is not None,
+                prefer_small_media is not None,
+                show_caption_above_media is not None,
             )
         ):
-            if reply_to_message_id is not None:
-                log.warning(
-                    "`reply_to_message_id` is deprecated and will be removed in future updates. Use `reply_parameters` instead."
-                )
-
-            if reply_to_chat_id is not None:
-                log.warning(
-                    "`reply_to_chat_id` is deprecated and will be removed in future updates. Use `reply_parameters` instead."
-                )
-
-            if reply_to_story_id is not None:
-                log.warning(
-                    "`reply_to_story_id` is deprecated and will be removed in future updates. Use `reply_parameters` instead."
-                )
-
-            if quote_text is not None:
-                log.warning(
-                    "`quote_text` is deprecated and will be removed in future updates. Use `reply_parameters` instead."
-                )
-
-            if quote_entities is not None:
-                log.warning(
-                    "`quote_entities` is deprecated and will be removed in future updates. Use `reply_parameters` instead."
-                )
-
-            if quote_offset is not None:
-                log.warning(
-                    "`quote_offset` is deprecated and will be removed in future updates. Use `reply_parameters` instead."
-                )
-
-            reply_parameters = types.ReplyParameters(
-                message_id=reply_to_message_id,
-                chat_id=reply_to_chat_id,
-                story_id=reply_to_story_id,
-                quote=quote_text,
-                quote_parse_mode=parse_mode,
-                quote_entities=quote_entities,
-                quote_position=quote_offset
+            link_preview_options = types.LinkPreviewOptions(
+                url=url,
+                prefer_large_media=prefer_large_media,
+                prefer_small_media=prefer_small_media,
+                show_above_text=show_caption_above_media,
             )
 
-        message, entities = (await utils.parse_text_entities(self, text, parse_mode, entities)).values()
-
-        if not url:
-            if entities:
-                for entity in entities:
-                    if isinstance(entity, enums.MessageEntityType.URL):
-                        url = entity.url
-                        break
-
-            if not url:
-                url = utils.get_first_url(message)
-
-        if not url:
-            raise ValueError("URL not specified")
-
-        r = await self.invoke(
-            raw.functions.messages.SendMedia(
-                peer=await self.resolve_peer(chat_id),
-                silent=disable_notification or None,
-                reply_to=await utils.get_reply_to(
-                    self,
-                    reply_parameters,
-                    message_thread_id
-                ),
-                random_id=self.rnd_id(),
-                schedule_date=utils.datetime_to_timestamp(schedule_date),
-                reply_markup=await reply_markup.write(self) if reply_markup else None,
-                message=message,
-                media=raw.types.InputMediaWebPage(
-                    url=url,
-                    force_large_media=prefer_large_media,
-                    force_small_media=prefer_small_media
-                ),
-                invert_media=show_caption_above_media,
-                allow_paid_floodskip=allow_paid_broadcast,
-                allow_paid_stars=paid_message_star_count,
-                entities=entities,
-                noforwards=protect_content,
-                effect=effect_id
-            ),
-            business_connection_id=business_connection_id
+        return await self.send_message(
+            chat_id=chat_id,
+            text=text,
+            parse_mode=parse_mode,
+            entities=entities,
+            link_preview_options=link_preview_options,
+            disable_notification=disable_notification,
+            message_thread_id=message_thread_id,
+            direct_messages_topic_id=direct_messages_topic_id,
+            effect_id=effect_id,
+            reply_parameters=reply_parameters,
+            quote_text=quote_text,
+            quote_entities=quote_entities,
+            quote_offset=quote_offset,
+            schedule_date=schedule_date,
+            repeat_period=repeat_period,
+            protect_content=protect_content,
+            business_connection_id=business_connection_id,
+            allow_paid_broadcast=allow_paid_broadcast,
+            paid_message_star_count=paid_message_star_count,
+            reply_markup=reply_markup,
+            reply_to_message_id=reply_to_message_id,
+            reply_to_chat_id=reply_to_chat_id,
+            reply_to_story_id=reply_to_story_id,
         )
-
-        if isinstance(r, raw.types.UpdateShortSentMessage):
-            peer = await self.resolve_peer(chat_id)
-
-            peer_id = (
-                peer.user_id
-                if isinstance(peer, raw.types.InputPeerUser)
-                else -peer.chat_id
-            )
-
-            return types.Message(
-                id=r.id,
-                chat=types.Chat(
-                    id=peer_id,
-                    type=enums.ChatType.PRIVATE,
-                    client=self
-                ),
-                text=message,
-                date=utils.timestamp_to_datetime(r.date),
-                outgoing=r.out,
-                reply_markup=reply_markup,
-                entities=[
-                    types.MessageEntity._parse(None, entity, {})
-                    for entity in entities
-                ] if entities else None,
-                client=self
-            )
-
-        for i in r.updates:
-            if isinstance(i, (raw.types.UpdateNewMessage,
-                              raw.types.UpdateNewChannelMessage,
-                              raw.types.UpdateNewScheduledMessage,
-                              raw.types.UpdateBotNewBusinessMessage)):
-                return await types.Message._parse(
-                    self, i.message,
-                    {i.id: i for i in r.users},
-                    {i.id: i for i in r.chats},
-                    is_scheduled=isinstance(i, raw.types.UpdateNewScheduledMessage),
-                    business_connection_id=getattr(i, "connection_id", None)
-                )

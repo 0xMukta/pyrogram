@@ -26,10 +26,10 @@ class GetStarsBalance:
     async def get_stars_balance(
         self: "pyrogram.Client",
         chat_id: Optional[Union[int, str]] = None,
-    ) -> int:
+    ) -> float:
         """Get the current Telegram Stars balance of the current account.
 
-        .. include:: /_includes/usable-by/users.rst
+        .. include:: /_includes/usable-by/users-bots.rst
 
         Parameters:
             chat_id (``int`` | ``str``, *optional*):
@@ -37,16 +37,16 @@ class GetStarsBalance:
                 For your personal cloud (Saved Messages) you can simply use "me" or "self".
 
         Returns:
-            ``int``: On success, the current stars balance is returned.
+            ``float``: On success, the current stars balance is returned.
 
         Example:
             .. code-block:: python
 
-                # Get stars balance
-                app.get_stars_balance()
+                # Get stars balance of current account
+                await app.get_stars_balance()
 
                 # Get stars balance of a bot
-                app.get_stars_balance(chat_id="pyrogrambot")
+                await app.get_stars_balance(chat_id="pyrogrambot")
         """
         if chat_id is None:
             peer = raw.types.InputPeerSelf()
@@ -54,9 +54,11 @@ class GetStarsBalance:
             peer = await self.resolve_peer(chat_id)
 
         r = await self.invoke(
-            raw.functions.payments.GetStarsStatus(
-                peer=peer
+            raw.functions.payments.GetStarsTransactions(
+                peer=peer,
+                offset="",
+                limit=0
             )
         )
 
-        return r.balance.amount
+        return r.balance.amount + r.balance.nanos / 1e9

@@ -16,11 +16,6 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with Pyrogram.  If not, see <http://www.gnu.org/licenses/>.
 
-from concurrent.futures.thread import ThreadPoolExecutor
-from datetime import datetime, timezone
-from getpass import getpass
-from io import BytesIO
-from typing import Union, List, Dict, Optional
 import asyncio
 import base64
 import functools
@@ -28,12 +23,26 @@ import hashlib
 import os
 import re
 import struct
+from concurrent.futures.thread import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
+from getpass import getpass
+from io import BytesIO
+from typing import Dict, List, Optional, Union
 
 import pyrogram
-from pyrogram import raw, enums
-from pyrogram import types
+from pyrogram import enums, raw, types
+from pyrogram.file_id import DOCUMENT_TYPES, PHOTO_TYPES, FileId, FileType
 from pyrogram.types.messages_and_media.message import Str
-from pyrogram.file_id import FileId, FileType, PHOTO_TYPES, DOCUMENT_TYPES
+
+
+def get_event_loop() -> asyncio.AbstractEventLoop:
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    return loop
 
 
 async def ainput(prompt: str = "", *, hide: bool = False, loop: Optional[asyncio.AbstractEventLoop] = None):
@@ -41,7 +50,7 @@ async def ainput(prompt: str = "", *, hide: bool = False, loop: Optional[asyncio
     if isinstance(loop, asyncio.AbstractEventLoop):
         loop = loop
     else:
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
 
     with ThreadPoolExecutor(1) as executor:
         func = functools.partial(getpass if hide else input, prompt)
@@ -99,11 +108,32 @@ def get_input_media_from_file_id(
     raise ValueError(f"Unknown file id: {file_id}")
 
 
+async def get_input_stargift(client: "pyrogram.Client", owned_gift_id: str) -> "raw.base.InputSavedStarGift":
+    if not isinstance(owned_gift_id, str):
+        raise ValueError(f"owned_gift_id has to be str, but {type(owned_gift_id)} was provided")
+
+    saved_gift_match = client.SAVED_GIFT_RE.match(owned_gift_id)
+    slug_match = client.UPGRADED_GIFT_RE.match(owned_gift_id)
+
+    if saved_gift_match:
+        return raw.types.InputSavedStarGiftChat(
+            peer=await client.resolve_peer(int(saved_gift_match.group(1))),
+            saved_id=int(saved_gift_match.group(2))
+        )
+    elif slug_match:
+        return raw.types.InputSavedStarGiftSlug(
+            slug=slug_match.group(1)
+        )
+    else:
+        return raw.types.InputSavedStarGiftUser(
+            msg_id=int(owned_gift_id)
+        )
+
+
 async def parse_messages(
     client: "pyrogram.Client",
     messages: Union["raw.base.messages.Messages", "raw.base.Updates"],
-    replies: int = 1,
-    business_connection_id: str = None
+    replies: int = 1
 ) -> List["types.Message"]:
     users = {i.id: i for i in getattr(messages, "users", [])}
     chats = {i.id: i for i in getattr(messages, "chats", [])}
@@ -131,8 +161,7 @@ async def parse_messages(
                     users=users,
                     chats=chats,
                     topics=topics,
-                    replies=0,
-                    business_connection_id=business_connection_id
+                    replies=0
                 )
             )
 
@@ -202,9 +231,9 @@ async def parse_messages(
                         users,
                         chats,
                         is_scheduled=isinstance(u, raw.types.UpdateNewScheduledMessage),
-                        business_connection_id=getattr(u, "connection_id", business_connection_id),
+                        business_connection_id=getattr(u, "connection_id", None),
                         raw_reply_to_message=getattr(u, "reply_to_message", None),
-                        replies=0
+                        replies=replies
                     )
                 )
 
@@ -295,50 +324,73 @@ def unpack_inline_message_id(inline_message_id: str) -> "raw.base.InputBotInline
             access_hash=unpacked[3]
         )
 
+ZERO_SECRET_CHAT_ID = -2000000000000
+ZERO_CHANNEL_ID = -1000000000000
 
-MIN_CHANNEL_ID_OLD = -1002147483647
-MIN_CHANNEL_ID = -100999999999999
-MAX_CHANNEL_ID = -1000000000000
-MIN_CHAT_ID = -999999999999
-MAX_USER_ID_OLD = 2147483647
-MAX_USER_ID = 999999999999
+MAX_CHANNEL_ID = 1000000000000 - (1 << 31)
+MIN_MONOFORUM_CHANNEL_ID = 1000000000000 + (1 << 31) + 1
+MAX_MONOFORUM_CHANNEL_ID = 3000000000000
+MAX_USER_ID = (1 << 40) - 1
+MAX_CHAT_ID = 999999999999
 
 
-def get_raw_peer_id(peer: Union[raw.base.Peer, raw.base.InputPeer, raw.base.RequestedPeer]) -> Optional[int]:
-    """Get the raw peer id from a Peer object"""
-    if isinstance(peer, (raw.types.PeerUser, raw.types.InputPeerUser, raw.types.RequestedPeerUser)):
-        return peer.user_id
+def get_raw_peer_id(peer: Union[int, raw.base.Peer, raw.base.InputPeer, raw.base.RequestedPeer]) -> Optional[int]:
+    """Get the raw peer id from a Peer object or high-lvl id"""
 
-    if isinstance(peer, (raw.types.PeerChat, raw.types.InputPeerChat, raw.types.RequestedPeerChat)):
-        return peer.chat_id
+    if isinstance(peer, int):
+        if peer < 0:
+            if -MAX_CHAT_ID <= peer:
+                return -peer
 
-    if isinstance(peer, (raw.types.PeerChannel, raw.types.InputPeerChannel, raw.types.RequestedPeerChannel)):
-        return peer.channel_id
+            if ZERO_CHANNEL_ID - MAX_CHANNEL_ID <= peer and peer != ZERO_CHANNEL_ID:
+                return ZERO_CHANNEL_ID - peer
+
+            if ZERO_CHANNEL_ID - MAX_MONOFORUM_CHANNEL_ID <= peer:
+                return ZERO_CHANNEL_ID - peer
+
+        elif 0 < peer <= MAX_USER_ID:
+            return peer
+    else:
+        if hasattr(peer, "user_id"):
+            return peer.user_id
+
+        if hasattr(peer, "chat_id"):
+            return peer.chat_id
+
+        if hasattr(peer, "channel_id"):
+            return peer.channel_id
 
     return None
 
 
 def get_peer_id(peer: Union[raw.base.Peer, raw.base.InputPeer, raw.base.RequestedPeer]) -> int:
     """Get the non-raw peer id from a Peer object"""
-    if isinstance(peer, (raw.types.PeerUser, raw.types.InputPeerUser, raw.types.RequestedPeerUser)):
+    if hasattr(peer, "user_id"):
         return peer.user_id
 
-    if isinstance(peer, (raw.types.PeerChat, raw.types.InputPeerChat, raw.types.RequestedPeerChat)):
+    if hasattr(peer, "chat_id"):
         return -peer.chat_id
 
-    if isinstance(peer, (raw.types.PeerChannel, raw.types.InputPeerChannel, raw.types.RequestedPeerChannel)):
-        return MAX_CHANNEL_ID - peer.channel_id
+    if hasattr(peer, "channel_id"):
+        return ZERO_CHANNEL_ID - peer.channel_id
 
     raise ValueError(f"Peer type invalid: {peer}")
 
 
 def get_peer_type(peer_id: int) -> str:
     if peer_id < 0:
-        if MIN_CHAT_ID <= peer_id:
+        if -MAX_CHAT_ID <= peer_id:
             return "chat"
 
-        if MIN_CHANNEL_ID <= peer_id < MAX_CHANNEL_ID:
+        if ZERO_CHANNEL_ID - MAX_CHANNEL_ID <= peer_id and peer_id != ZERO_CHANNEL_ID:
             return "channel"
+
+        if ZERO_SECRET_CHAT_ID + (-1 << 31) <= peer_id and peer_id != ZERO_SECRET_CHAT_ID:
+            return "secret_chat"
+
+        if ZERO_CHANNEL_ID - MAX_MONOFORUM_CHANNEL_ID <= peer_id:
+            return "monoforum"
+
     elif 0 < peer_id <= MAX_USER_ID:
         return "user"
 
@@ -349,7 +401,8 @@ async def get_reply_to(
     client: "pyrogram.Client",
     reply_parameters: Optional["types.ReplyParameters"] = None,
     message_thread_id: Optional[int] = None,
-) -> Optional[Union[raw.types.InputReplyToMessage, raw.types.InputReplyToStory]]:
+    direct_messages_topic_id: Optional[int] = None
+) -> Optional[Union[raw.types.InputReplyToMessage, raw.types.InputReplyToStory, raw.types.InputReplyToMonoForum]]:
     """Get InputReply for reply_to argument"""
     if reply_parameters:
         if reply_parameters.chat_id and reply_parameters.story_id:
@@ -375,10 +428,12 @@ async def get_reply_to(
             return raw.types.InputReplyToMessage(
                 reply_to_msg_id=reply_parameters.message_id,
                 top_msg_id=message_thread_id,
-                reply_to_peer_id=await client.resolve_peer(reply_parameters.chat_id) if reply_parameters.chat_id else None,
+                reply_to_peer_id=await client.resolve_peer(reply_parameters.chat_id),
                 quote_text=message,
                 quote_entities=entities,
                 quote_offset=reply_parameters.quote_position,
+                monoforum_peer_id=await client.resolve_peer(direct_messages_topic_id),
+                todo_item_id=reply_parameters.checklist_task_id
             )
 
     if message_thread_id:
@@ -386,11 +441,16 @@ async def get_reply_to(
             reply_to_msg_id=message_thread_id
         )
 
+    if direct_messages_topic_id:
+        return raw.types.InputReplyToMonoForum(
+            monoforum_peer_id=await client.resolve_peer(direct_messages_topic_id)
+        )
+
     return None
 
 
 def get_channel_id(peer_id: int) -> int:
-    return MAX_CHANNEL_ID - peer_id
+    return ZERO_CHANNEL_ID - peer_id
 
 
 def btoi(b: bytes) -> int:
@@ -514,8 +574,11 @@ def timestamp_to_datetime(ts: Optional[int]) -> Optional[datetime]:
     return datetime.fromtimestamp(ts) if ts else None
 
 
-def datetime_to_timestamp(dt: Optional[datetime]) -> Optional[int]:
-    return int(dt.timestamp()) if dt else None
+def datetime_to_timestamp(dt: Optional[Union[datetime, timedelta]]) -> Optional[int]:
+    if isinstance(dt, timedelta):
+        return int((datetime.now() + dt).timestamp())
+    elif isinstance(dt, datetime):
+        return int(dt.timestamp())
 
 
 def get_first_url(text):
@@ -602,3 +665,56 @@ def from_inline_bytes(data: bytes, file_name: str = None) -> BytesIO:
     b.name = file_name or f"photo_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
 
     return b
+
+
+def obj_to_jsonvalue(obj) -> "raw.base.JsonValue":
+    if obj is None:
+        return raw.types.JsonNull()
+    elif isinstance(obj, bool):
+        return raw.types.JsonBool(value=obj)
+    elif isinstance(obj, (int, float)):
+        return raw.types.JsonNumber(value=obj)
+    elif isinstance(obj, str):
+        return raw.types.JsonString(value=obj)
+    elif isinstance(obj, (list, tuple)):
+        return raw.types.JsonArray(value=[obj_to_jsonvalue(x) for x in obj])
+    elif isinstance(obj, dict):
+        return raw.types.JsonObject(value=[raw.types.JsonObjectValue(key=k, value=obj_to_jsonvalue(v)) for k, v in obj.items()])
+
+    raise TypeError(f"Unsupported type: {type(obj)}")
+
+
+def jsonvalue_to_obj(obj: "raw.base.JsonValue"):
+    if isinstance(obj, raw.types.JsonNull):
+        return None
+    elif isinstance(obj, raw.types.JsonBool):
+        return obj.value
+    elif isinstance(obj, raw.types.JsonNumber):
+        return obj.value
+    elif isinstance(obj, raw.types.JsonString):
+        return obj.value
+    elif isinstance(obj, raw.types.JsonArray):
+        return [jsonvalue_to_obj(x) for x in obj.value]
+    elif isinstance(obj, raw.types.JsonObject):
+        return {o.key: jsonvalue_to_obj(o.value) for o in obj.value}
+
+    raise TypeError(f"Unsupported type: {type(obj)}")
+
+
+def from_nano(nano: int) -> float:
+    return nano / 1e9
+
+
+def to_nano(amount: float) -> int:
+    return int(amount * 1e9)
+
+
+def get_premium_duration_month_count(day_count: int) -> int:
+    return max(1, day_count // 30)
+
+
+def get_premium_duration_day_count(month_count: int) -> int:
+    if month_count <= 0 or month_count > 10000000:
+        return 7
+
+    return month_count * 30 + month_count // 3 + month_count // 12
